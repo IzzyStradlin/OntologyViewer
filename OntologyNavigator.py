@@ -4,13 +4,23 @@ import plotly.graph_objects as go
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox, scrolledtext
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import re
 import threading
 
-# Function to load TTL or RDF file (ontology)
-def load_ontology(ttl_file):
+# Function to load TTL, RDF, or OWL file (ontology)
+def load_ontology(file_path):
     g = rdflib.Graph()
-    g.parse(ttl_file, format="ttl")
+    # Determine the format based on the file extension
+    if file_path.endswith(".ttl"):
+        g.parse(file_path, format="ttl")
+    elif file_path.endswith(".rdf"):
+        g.parse(file_path, format="xml")  # RDF/XML format
+    elif file_path.endswith(".owl"):
+        g.parse(file_path, format="xml")  # OWL files are typically in RDF/XML format
+    else:
+        raise ValueError("Unsupported file format. Please select a .ttl, .rdf, or .owl file.")
     return g
 
 # Function to check if a string is alphanumeric and longer than 20 characters
@@ -111,15 +121,15 @@ def execute_query(ontology, query):
 
 # Function to manage file loading through the GUI
 def load_file():
-    ttl_file = filedialog.askopenfilename(
-        title="Select Ontology file (TTL or RDF)", 
-        filetypes=[("TTL or RDF files", "*.ttl *.rdf")]
+    file_path = filedialog.askopenfilename(
+        title="Select Ontology file (TTL, RDF, or OWL)", 
+        filetypes=[("Ontology files", "*.ttl *.rdf *.owl")]
     )
     
-    if ttl_file:
+    if file_path:
         try:
             global ontology
-            ontology = load_ontology(ttl_file)
+            ontology = load_ontology(file_path)
             graph = create_graph(ontology)
             threading.Thread(target=visualize_graph, args=(graph,)).start()  # Run visualization in a separate thread
         except Exception as e:
@@ -129,44 +139,83 @@ def load_file():
 
 # Function to manage SPARQL query execution
 def execute_sparql_query():
-    query = query_text.get("1.0", tk.END).strip()
+    query = sparql_query_text.get("1.0", tk.END).strip()
     if ontology:
         result = execute_query(ontology, query)
-        result_text.delete("1.0", tk.END)
-        result_text.insert(tk.END, result)
+        sparql_result_text.delete("1.0", tk.END)
+        sparql_result_text.insert(tk.END, result)
     else:
-        messagebox.showwarning("Warning", "Please load a .ttl or .rdf file first")
+        messagebox.showwarning("Warning", "Please load a .ttl, .rdf, or .owl file first")
+
+# Function to handle natural language query execution
+def execute_natural_language_query():
+    natural_query = natural_query_text.get("1.0", tk.END).strip()
+    if not natural_query:
+        messagebox.showwarning("Warning", "Please enter a natural language query.")
+        return
+
+    # Placeholder for LLM integration
+    sparql_query = f"Generated SPARQL query for: {natural_query}"  # Replace with actual LLM logic
+
+    # Display the generated SPARQL query
+    natural_result_text.delete("1.0", tk.END)
+    natural_result_text.insert(tk.END, f"Generated SPARQL Query:\n{sparql_query}\n\n")
+
+    # Execute the SPARQL query if an ontology is loaded
+    if ontology:
+        result = execute_query(ontology, sparql_query)
+        natural_result_text.insert(tk.END, f"Query Results:\n{result}")
+    else:
+        natural_result_text.insert(tk.END, "No ontology loaded. Please load an ontology to execute the query.")
 
 # Create the Tkinter window
 def create_interface():
-    root = tk.Tk()
-    root.title("RDF Ontology Viewer with SPARQL Query")
-    
-    # Window configuration
-    label = tk.Label(root, text="Load a TTL or RDF file to visualize the RDF graph and run SPARQL queries")
-    label.pack(pady=20)
-    
-    # Button to load the file
-    btn_load = tk.Button(root, text="Load Ontology", command=load_file)
-    btn_load.pack(pady=10)
-    
-    # Text for entering the SPARQL query
-    global query_text
-    query_text = scrolledtext.ScrolledText(root, height=8, width=60)
-    query_text.pack(pady=10)
-    query_text.insert(tk.END, "Enter your SPARQL query here...")
-    
-    # Button to execute the query
-    btn_execute = tk.Button(root, text="Execute SPARQL Query", command=execute_sparql_query)
-    btn_execute.pack(pady=10)
-    
-    # Text to display the query results
-    global result_text
-    result_text = scrolledtext.ScrolledText(root, height=10, width=60)
-    result_text.pack(pady=10)
-    
-    # Start the GUI
-    root.geometry("700x600")
+    root = ttk.Window(themename="cosmo")  # Usa un tema moderno come "cosmo", "flatly", "darkly"
+    root.title("Ontology Viewer with SPARQL and Natural Language Queries")
+    root.geometry("900x900")
+
+    # Load Ontology Section
+    load_frame = ttk.Frame(root, padding=10)
+    load_frame.pack(fill=X, pady=10)
+
+    load_label = ttk.Label(load_frame, text="Load a TTL, RDF, or OWL file:", font=("Arial", 12))
+    load_label.pack(side=LEFT, padx=5)
+
+    btn_load = ttk.Button(load_frame, text="Load Ontology", bootstyle=PRIMARY, command=load_file)
+    btn_load.pack(side=LEFT, padx=5)
+
+    # SPARQL Query Section
+    sparql_frame = ttk.Labelframe(root, text="SPARQL Query", padding=10, bootstyle=INFO)
+    sparql_frame.pack(fill=BOTH, expand=True, pady=10)
+
+    global sparql_query_text
+    sparql_query_text = ttk.ScrolledText(sparql_frame, height=8, width=80)
+    sparql_query_text.pack(pady=5)
+    sparql_query_text.insert("1.0", "Enter your SPARQL query here...")
+
+    btn_execute_sparql = ttk.Button(sparql_frame, text="Execute SPARQL Query", bootstyle=SUCCESS, command=execute_sparql_query)
+    btn_execute_sparql.pack(pady=5)
+
+    global sparql_result_text
+    sparql_result_text = ttk.ScrolledText(sparql_frame, height=10, width=80)
+    sparql_result_text.pack(pady=5)
+
+    # Natural Language Query Section
+    natural_frame = ttk.Labelframe(root, text="Natural Language Query", padding=10, bootstyle=WARNING)
+    natural_frame.pack(fill=BOTH, expand=True, pady=10)
+
+    global natural_query_text
+    natural_query_text = ttk.ScrolledText(natural_frame, height=8, width=80)
+    natural_query_text.pack(pady=5)
+    natural_query_text.insert("1.0", "Enter your natural language query here...")
+
+    btn_execute_natural = ttk.Button(natural_frame, text="Generate and Execute SPARQL Query", bootstyle=PRIMARY, command=execute_natural_language_query)
+    btn_execute_natural.pack(pady=5)
+
+    global natural_result_text
+    natural_result_text = ttk.ScrolledText(natural_frame, height=10, width=80)
+    natural_result_text.pack(pady=5)
+
     root.mainloop()
 
 # Start the interface
