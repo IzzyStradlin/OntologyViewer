@@ -27,10 +27,10 @@ def load_ontology_from_uri():
     # Custom dialog for entering the URI
     uri_window = tk.Toplevel()
     uri_window.title("Enter Ontology URI")
-    uri_window.geometry("500x150")  # Enlarged window size
+    uri_window.geometry("1200x200")  # Enlarged window size
 
     tk.Label(uri_window, text="Enter the URI of the ontology:", font=("Arial", 12)).pack(pady=10)
-    uri_entry = tk.Entry(uri_window, width=60, font=("Arial", 12))
+    uri_entry = tk.Entry(uri_window, width=80, font=("Arial", 12))
     uri_entry.pack(pady=5)
 
     def submit_uri():
@@ -43,11 +43,14 @@ def load_ontology_from_uri():
         try:
             global ontology
             ontology = rdflib.Graph()
-            ontology.parse(uri, format="xml")  # Assuming RDF/XML format for web ontologies
+            print(f"Loading ontology from URI: {uri}")
+            ontology.parse(uri, format="xml")
+            print("Ontology loaded successfully.")
             graph = create_graph(ontology)
             threading.Thread(target=visualize_graph, args=(graph,)).start()  # Run visualization in a separate thread
             messagebox.showinfo("Success", f"Ontology loaded successfully from URI: {uri}")
         except Exception as e:
+            print(f"Error loading ontology: {e}")
             show_error_window(f"Error loading ontology from URI: {e}")
         finally:
             uri_window.destroy()
@@ -76,14 +79,23 @@ def show_error_window(error_message):
 def is_alphanumeric(s):
     return bool(re.match(r'^[a-zA-Z0-9]{15,}$', s))
 
-# Function to create the graph with NetworkX, hiding nodes with alphanumeric labels longer than 20 characters
+# Function to create the graph with NetworkX, including relationships
 def create_graph(ontology):
     G = nx.DiGraph()
-    
+
+    # Iterate through all triples in the ontology
     for subj, pred, obj in ontology:
-        if not (is_alphanumeric(str(subj)) or is_alphanumeric(str(obj))):
-            G.add_edge(subj, obj, label=pred)
-    
+        subj_str = str(subj)
+        pred_str = str(pred)
+        obj_str = str(obj)
+
+        # Add nodes for the subject and object
+        G.add_node(subj_str, label=subj_str)
+        G.add_node(obj_str, label=obj_str)
+
+        # Add an edge for the predicate (relationship)
+        G.add_edge(subj_str, obj_str, label=pred_str)
+
     return G
 
 # Function to visualize the graph in 3D with Plotly
@@ -119,7 +131,7 @@ def visualize_graph(graph):
         marker=dict(size=[max(10, 40 * c) for c in nodes_color], color=nodes_color, colorscale='Viridis', showscale=True),
         hoverinfo='text',
         name='nodes',
-        text=[]  # Leave empty here
+        text=list(graph.nodes())  # Display node names
     )
 
     trace_edges = go.Scatter3d(
@@ -132,15 +144,6 @@ def visualize_graph(graph):
         name='edges',
         text=edge_labels  # Show edge label (predicate) on hover
     )
-
-    # Add the link as part of the node tooltip
-    nodes_tooltip = []
-    for node in graph.nodes():
-        link = f"http://{node}"  # Ensure nodes contain valid URLs
-        nodes_tooltip.append(f"{node}<br><a href='{link}' target='_blank'>Open link</a>")
-
-    # Set tooltips
-    trace_nodes.text = nodes_tooltip
 
     # Create a new figure
     fig = go.Figure(data=[trace_edges, trace_nodes])
