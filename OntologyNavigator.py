@@ -3,25 +3,74 @@ import networkx as nx
 import plotly.graph_objects as go
 import tkinter as tk
 from tkinter import filedialog
-from tkinter import messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext, simpledialog
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import re
 import threading
+import pyperclip  # For copying text to clipboard
 
-# Function to load TTL, RDF, or OWL file (ontology)
+# Function to load TTL, RDF, OWL, or XML file (ontology)
 def load_ontology(file_path):
     g = rdflib.Graph()
     # Determine the format based on the file extension
     if file_path.endswith(".ttl"):
         g.parse(file_path, format="ttl")
-    elif file_path.endswith(".rdf"):
+    elif file_path.endswith(".rdf") or file_path.endswith(".owl") or file_path.endswith(".xml"):
         g.parse(file_path, format="xml")  # RDF/XML format
-    elif file_path.endswith(".owl"):
-        g.parse(file_path, format="xml")  # OWL files are typically in RDF/XML format
     else:
-        raise ValueError("Unsupported file format. Please select a .ttl, .rdf, or .owl file.")
+        raise ValueError("Unsupported file format. Please select a .ttl, .rdf, .owl, or .xml file.")
     return g
+
+# Function to load ontology from a URI
+def load_ontology_from_uri():
+    # Custom dialog for entering the URI
+    uri_window = tk.Toplevel()
+    uri_window.title("Enter Ontology URI")
+    uri_window.geometry("500x150")  # Enlarged window size
+
+    tk.Label(uri_window, text="Enter the URI of the ontology:", font=("Arial", 12)).pack(pady=10)
+    uri_entry = tk.Entry(uri_window, width=60, font=("Arial", 12))
+    uri_entry.pack(pady=5)
+
+    def submit_uri():
+        uri = uri_entry.get().strip()
+        if not uri:
+            messagebox.showwarning("Warning", "No URI provided.")
+            uri_window.destroy()
+            return
+
+        try:
+            global ontology
+            ontology = rdflib.Graph()
+            ontology.parse(uri, format="xml")  # Assuming RDF/XML format for web ontologies
+            graph = create_graph(ontology)
+            threading.Thread(target=visualize_graph, args=(graph,)).start()  # Run visualization in a separate thread
+            messagebox.showinfo("Success", f"Ontology loaded successfully from URI: {uri}")
+        except Exception as e:
+            show_error_window(f"Error loading ontology from URI: {e}")
+        finally:
+            uri_window.destroy()
+
+    tk.Button(uri_window, text="Load Ontology", command=submit_uri, font=("Arial", 10), bg="#4CAF50", fg="white").pack(pady=10)
+
+# Function to show an error window with copy functionality
+def show_error_window(error_message):
+    error_window = tk.Toplevel()
+    error_window.title("Error")
+    error_window.geometry("500x300")
+
+    tk.Label(error_window, text="An error occurred:", font=("Arial", 12, "bold")).pack(pady=10)
+    error_text = scrolledtext.ScrolledText(error_window, height=10, width=60, font=("Courier", 10))
+    error_text.pack(pady=5)
+    error_text.insert("1.0", error_message)
+    error_text.configure(state="disabled")  # Make the text read-only
+
+    def copy_to_clipboard():
+        pyperclip.copy(error_message)
+        messagebox.showinfo("Copied", "Error message copied to clipboard.")
+
+    tk.Button(error_window, text="Copy Error", command=copy_to_clipboard, font=("Arial", 10), bg="#2196F3", fg="white").pack(pady=10)
 
 # Function to check if a string is alphanumeric and longer than 20 characters
 def is_alphanumeric(s):
@@ -122,8 +171,8 @@ def execute_query(ontology, query):
 # Function to manage file loading through the GUI
 def load_file():
     file_path = filedialog.askopenfilename(
-        title="Select Ontology file (TTL, RDF, or OWL)", 
-        filetypes=[("Ontology files", "*.ttl *.rdf *.owl")]
+        title="Select Ontology file (TTL, RDF, OWL, or XML)", 
+        filetypes=[("Ontology files", "*.ttl *.rdf *.owl *.xml")]
     )
     
     if file_path:
@@ -145,7 +194,7 @@ def execute_sparql_query():
         sparql_result_text.delete("1.0", tk.END)
         sparql_result_text.insert(tk.END, result)
     else:
-        messagebox.showwarning("Warning", "Please load a .ttl, .rdf, or .owl file first")
+        messagebox.showwarning("Warning", "Please load a .ttl, .rdf, .owl, or .xml file first")
 
 # Function to handle natural language query execution
 def execute_natural_language_query():
@@ -170,7 +219,7 @@ def execute_natural_language_query():
 
 # Create the Tkinter window
 def create_interface():
-    root = ttk.Window(themename="cosmo")  # Usa un tema moderno come "cosmo", "flatly", "darkly"
+    root = ttk.Window(themename="cosmo")  # Use a modern theme like "cosmo", "flatly", "darkly"
     root.title("Ontology Viewer with SPARQL and Natural Language Queries")
     root.geometry("900x900")
 
@@ -178,11 +227,14 @@ def create_interface():
     load_frame = ttk.Frame(root, padding=10)
     load_frame.pack(fill=X, pady=10)
 
-    load_label = ttk.Label(load_frame, text="Load a TTL, RDF, or OWL file:", font=("Arial", 12))
+    load_label = ttk.Label(load_frame, text="Load a TTL, RDF, OWL, or XML file:", font=("Arial", 12))
     load_label.pack(side=LEFT, padx=5)
 
     btn_load = ttk.Button(load_frame, text="Load Ontology", bootstyle=PRIMARY, command=load_file)
     btn_load.pack(side=LEFT, padx=5)
+
+    btn_load_uri = ttk.Button(load_frame, text="Load Ontology from URI", bootstyle=INFO, command=load_ontology_from_uri)
+    btn_load_uri.pack(side=LEFT, padx=5)
 
     # SPARQL Query Section
     sparql_frame = ttk.Labelframe(root, text="SPARQL Query", padding=10, bootstyle=INFO)
