@@ -214,11 +214,30 @@ def ask_cohere():
         messagebox.showwarning("Warning", "Please enter a question.")
         return
 
+    if ontology is None:
+        messagebox.showwarning("Warning", "Please load an ontology file first.")
+        return
+
     try:
+        # Serializza l'ontologia in formato RDF/XML come stringa
+        ontology_context = ontology.serialize(format="xml")
+
+        # Costruisci il prompt con l'ontologia e la domanda
+        prompt = f"""
+        Context:
+        This is an ontology in RDF/XML format:
+        {ontology_context}
+
+        Question:
+        {question}
+
+        Answer:
+        """
+
         # Chiamata API per inviare la domanda al modello Cohere
         response = co.chat(
             model="command-a-03-2025",
-            messages=[{"role": "user", "content": question}]
+            messages=[{"role": "user", "content": prompt}]
         )
 
         # Reset del box di risposta prima di visualizzare la risposta
