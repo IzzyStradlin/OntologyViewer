@@ -1,3 +1,4 @@
+import cohere
 import rdflib
 import networkx as nx
 import plotly.graph_objects as go
@@ -9,10 +10,9 @@ from ttkbootstrap.constants import *
 import re
 import threading
 import pyperclip  # For copying text to clipboard
-import cohere
 
-# Inizializzazione dell'API Cohere
-co = cohere.Client("BHVtdp8pxKtkUZGtyNGmxjpp0E7KDMX2QI8XYGsv")
+# Initialize Coherence API
+co = cohere.ClientV2("BHVtdp8pxKtkUZGtyNGmxjpp0E7KDMX2QI8XYGsv")
 
 # Function to load TTL, RDF, OWL, or XML file (ontology)
 def load_ontology(file_path):
@@ -207,107 +207,57 @@ def execute_sparql_query():
     else:
         messagebox.showwarning("Warning", "Please load a .ttl, .rdf, .owl, or .xml file first")
 
-# Function to handle natural language query execution
+# Function to handle natural language query execution with Cohere API
 def execute_natural_language_query():
     natural_query = natural_query_text.get("1.0", tk.END).strip()
     if not natural_query:
         messagebox.showwarning("Warning", "Please enter a natural language query.")
         return
 
-    # Placeholder for LLM integration
-    sparql_query = f"Generated SPARQL query for: {natural_query}"  # Replace with actual LLM logic
-
-    # Display the generated SPARQL query
-    natural_result_text.delete("1.0", tk.END)
-    natural_result_text.insert(tk.END, f"Generated SPARQL Query:\n{sparql_query}\n\n")
-
-    # Execute the SPARQL query if an ontology is loaded
-    if ontology:
-        result = execute_query(ontology, sparql_query)
-        natural_result_text.insert(tk.END, f"Query Results:\n{result}")
-    else:
-        natural_result_text.insert(tk.END, "No ontology loaded. Please load an ontology to execute the query.")
-
-# Funzione per inviare la domanda e ottenere la risposta dal modello Cohere
-def ask_cohere():
-    question = natural_query_text.get("1.0", tk.END).strip()
-    if not question:
-        messagebox.showwarning("Warning", "Please enter a question.")
-        return
-
     try:
-        # Chiamata API per inviare la domanda al modello Cohere
+        # Call the Cohere API to generate a SPARQL query
         response = co.chat(
-            model="command-a-03-2025",
-            messages=[{"role": "user", "content": question}]
+            model="command-a-03-2025", 
+            messages=[{"role": "user", "content": natural_query}],
+            temperature=0.7
         )
+        sparql_query = response['choices'][0]['message']['content']
+        sparql_query = sparql_query.strip()  # Clean up the SPARQL query
 
-        # Reset del box di risposta prima di visualizzare la risposta
-        natural_result_text.delete("1.0", tk.END)
+        # Display the generated SPARQL query
+        sparql_query_text.delete("1.0", tk.END)
+        sparql_query_text.insert(tk.END, sparql_query)
 
-        # Estrarre e visualizzare la risposta
-        answer = response.reply.strip()
-        if answer:
-            natural_result_text.insert(tk.END, answer)  # Inserisce la risposta nel box di testo
-            natural_result_text.yview(tk.END)  # Scrolla fino alla fine per visualizzare la risposta
-
+        # Execute the SPARQL query
+        if ontology:
+            result = execute_query(ontology, sparql_query)
+            sparql_result_text.delete("1.0", tk.END)
+            sparql_result_text.insert(tk.END, result)
+        else:
+            messagebox.showwarning("Warning", "Please load an ontology file first.")
     except Exception as e:
-        messagebox.showerror("Error", f"Error with Cohere API: {e}")
-        print(f"Error with Cohere API: {e}")
+        messagebox.showerror("Error", f"Error generating SPARQL query: {e}")
 
-# Create the Tkinter window
-def create_interface():
-    root = ttk.Window(themename="cosmo")  # Use a modern theme like "cosmo", "flatly", "darkly"
-    root.title("Ontology Viewer with Cohere Integration")
-    root.geometry("900x900")
+# GUI setup
+root = ttk.Window(themename="superhero")
+root.title("Ontology RDF Viewer")
+root.geometry("800x600")
 
-    # Load Ontology Section
-    load_frame = ttk.Frame(root, padding=10)
-    load_frame.pack(fill=X, pady=10)
+# Buttons and text boxes for interaction
+file_button = ttk.Button(root, text="Load Ontology", command=load_file)
+file_button.pack(pady=10)
 
-    load_label = ttk.Label(load_frame, text="Load a TTL, RDF, OWL, or XML file:", font=("Arial", 12))
-    load_label.pack(side=LEFT, padx=5)
+natural_query_text = tk.Text(root, height=5, width=60)
+natural_query_text.pack(pady=10)
 
-    btn_load = ttk.Button(load_frame, text="Load Ontology", bootstyle=PRIMARY, command=load_file)
-    btn_load.pack(side=LEFT, padx=5)
+execute_nl_button = ttk.Button(root, text="Execute Natural Language Query", command=execute_natural_language_query)
+execute_nl_button.pack(pady=10)
 
-    btn_load_uri = ttk.Button(load_frame, text="Load Ontology from URI", bootstyle=INFO, command=load_ontology_from_uri)
-    btn_load_uri.pack(side=LEFT, padx=5)
+sparql_query_text = tk.Text(root, height=5, width=60)
+sparql_query_text.pack(pady=10)
 
-    # SPARQL Query Section
-    sparql_frame = ttk.Labelframe(root, text="SPARQL Query", padding=10, bootstyle=INFO)
-    sparql_frame.pack(fill=BOTH, expand=True, pady=10)
+sparql_result_text = scrolledtext.ScrolledText(root, height=10, width=60)
+sparql_result_text.pack(pady=10)
 
-    global sparql_query_text
-    sparql_query_text = ttk.ScrolledText(sparql_frame, height=8, width=80)
-    sparql_query_text.pack(pady=5)
-    sparql_query_text.insert("1.0", "Enter your SPARQL query here...")
-
-    btn_execute_sparql = ttk.Button(sparql_frame, text="Execute SPARQL Query", bootstyle=SUCCESS, command=execute_sparql_query)
-    btn_execute_sparql.pack(pady=5)
-
-    global sparql_result_text
-    sparql_result_text = ttk.ScrolledText(sparql_frame, height=10, width=80)
-    sparql_result_text.pack(pady=5)
-
-    # Natural Language Query Section
-    natural_frame = ttk.Labelframe(root, text="Natural Language Query", padding=10, bootstyle=WARNING)
-    natural_frame.pack(fill=BOTH, expand=True, pady=10)
-
-    global natural_query_text
-    natural_query_text = ttk.ScrolledText(natural_frame, height=8, width=80)
-    natural_query_text.pack(pady=5)
-    natural_query_text.insert("1.0", "Enter your natural language query here...")
-
-    btn_execute_natural = ttk.Button(natural_frame, text="Generate and Execute Query", bootstyle=PRIMARY, command=ask_cohere)
-    btn_execute_natural.pack(pady=5)
-
-    global natural_result_text
-    natural_result_text = ttk.ScrolledText(natural_frame, height=10, width=80)
-    natural_result_text.pack(pady=5)
-
-    root.mainloop()
-
-# Start the interface
-ontology = None  # Global variable to store the loaded ontology
-create_interface()
+# Run the main loop for the GUI
+root.mainloop()
