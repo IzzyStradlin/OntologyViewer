@@ -12,7 +12,7 @@ import pyperclip  # For copying text to clipboard
 import cohere
 
 # Inizializzazione dell'API Cohere
-co = cohere.Client("BHVtdp8pxKtkUZGtyNGmxjpp0E7KDMX2QI8XYGsv")
+co = cohere.ClientV2("nVELX7wawaT3J0ufHIKWGbEolza9FDMZvn6svFxK")
 
 # Function to load TTL, RDF, OWL, or XML file (ontology)
 def load_ontology(file_path):
@@ -207,27 +207,6 @@ def execute_sparql_query():
     else:
         messagebox.showwarning("Warning", "Please load a .ttl, .rdf, .owl, or .xml file first")
 
-# Function to handle natural language query execution
-def execute_natural_language_query():
-    natural_query = natural_query_text.get("1.0", tk.END).strip()
-    if not natural_query:
-        messagebox.showwarning("Warning", "Please enter a natural language query.")
-        return
-
-    # Placeholder for LLM integration
-    sparql_query = f"Generated SPARQL query for: {natural_query}"  # Replace with actual LLM logic
-
-    # Display the generated SPARQL query
-    natural_result_text.delete("1.0", tk.END)
-    natural_result_text.insert(tk.END, f"Generated SPARQL Query:\n{sparql_query}\n\n")
-
-    # Execute the SPARQL query if an ontology is loaded
-    if ontology:
-        result = execute_query(ontology, sparql_query)
-        natural_result_text.insert(tk.END, f"Query Results:\n{result}")
-    else:
-        natural_result_text.insert(tk.END, "No ontology loaded. Please load an ontology to execute the query.")
-
 # Funzione per inviare la domanda e ottenere la risposta dal modello Cohere
 def ask_cohere():
     question = natural_query_text.get("1.0", tk.END).strip()
@@ -246,7 +225,7 @@ def ask_cohere():
         natural_result_text.delete("1.0", tk.END)
 
         # Estrarre e visualizzare la risposta
-        answer = response.reply.strip()
+        answer = response.message.content[0].text.strip()
         if answer:
             natural_result_text.insert(tk.END, answer)  # Inserisce la risposta nel box di testo
             natural_result_text.yview(tk.END)  # Scrolla fino alla fine per visualizzare la risposta
