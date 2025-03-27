@@ -234,11 +234,17 @@ def ask_cohere():
         messagebox.showerror("Error", f"Error with Cohere API: {e}")
         print(f"Error with Cohere API: {e}")
 
+# Funzione per rimuovere il testo predefinito quando si clicca sui box di testo
+def clear_placeholder(event):
+    widget = event.widget
+    if widget.get("1.0", tk.END).strip() == "Enter your SPARQL query here..." or widget.get("1.0", tk.END).strip() == "Enter your natural language query here...":
+        widget.delete("1.0", tk.END)
+
 # Create the Tkinter window
 def create_interface():
     root = ttk.Window(themename="cosmo")  # Use a modern theme like "cosmo", "flatly", "darkly"
     root.title("Ontology Viewer with Cohere Integration")
-    root.geometry("900x900")
+    root.geometry("900x1000")  # Allungata verso il basso
 
     # Load Ontology Section
     load_frame = ttk.Frame(root, padding=10)
@@ -261,6 +267,7 @@ def create_interface():
     sparql_query_text = ttk.ScrolledText(sparql_frame, height=8, width=80)
     sparql_query_text.pack(pady=5)
     sparql_query_text.insert("1.0", "Enter your SPARQL query here...")
+    sparql_query_text.bind("<FocusIn>", clear_placeholder)  # Rimuove il testo predefinito al clic
 
     btn_execute_sparql = ttk.Button(sparql_frame, text="Execute SPARQL Query", bootstyle=SUCCESS, command=execute_sparql_query)
     btn_execute_sparql.pack(pady=5)
@@ -277,6 +284,7 @@ def create_interface():
     natural_query_text = ttk.ScrolledText(natural_frame, height=8, width=80)
     natural_query_text.pack(pady=5)
     natural_query_text.insert("1.0", "Enter your natural language query here...")
+    natural_query_text.bind("<FocusIn>", clear_placeholder)  # Rimuove il testo predefinito al clic
 
     btn_execute_natural = ttk.Button(natural_frame, text="Generate and Execute Query", bootstyle=PRIMARY, command=ask_cohere)
     btn_execute_natural.pack(pady=5)
