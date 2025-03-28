@@ -11,7 +11,7 @@ import threading
 import pyperclip  # For copying text to clipboard
 import cohere
 
-# Inizializzazione dell'API Cohere
+# Initialize the Cohere API
 co = cohere.ClientV2("nVELX7wawaT3J0ufHIKWGbEolza9FDMZvn6svFxK")
 
 # Function to load TTL, RDF, OWL, or XML file (ontology)
@@ -207,7 +207,7 @@ def execute_sparql_query():
     else:
         messagebox.showwarning("Warning", "Please load a .ttl, .rdf, .owl, or .xml file first")
 
-# Funzione per inviare la domanda e ottenere la risposta dal modello Cohere
+# Function to send the question and get the response from the Cohere model
 def ask_cohere():
     question = natural_query_text.get("1.0", tk.END).strip()
     if not question:
@@ -219,10 +219,10 @@ def ask_cohere():
         return
 
     try:
-        # Serializza l'ontologia in formato RDF/XML come stringa
+        # Serialize the ontology in RDF/XML format as a string
         ontology_context = ontology.serialize(format="xml")
 
-        # Costruisci il prompt con l'ontologia e la domanda
+        # Build the prompt with the ontology and the question
         prompt = f"""
         Context:
         This is an ontology in RDF/XML format:
@@ -234,26 +234,26 @@ def ask_cohere():
         Answer:
         """
 
-        # Chiamata API per inviare la domanda al modello Cohere
+        # API call to send the question to the Cohere model
         response = co.chat(
             model="command-a-03-2025",
             messages=[{"role": "user", "content": prompt}]
         )
 
-        # Reset del box di risposta prima di visualizzare la risposta
+        # Reset the response box before displaying the response
         natural_result_text.delete("1.0", tk.END)
 
-        # Estrarre e visualizzare la risposta
+        # Extract and display the response
         answer = response.message.content[0].text.strip()
         if answer:
-            natural_result_text.insert(tk.END, answer)  # Inserisce la risposta nel box di testo
-            natural_result_text.yview(tk.END)  # Scrolla fino alla fine per visualizzare la risposta
+            natural_result_text.insert(tk.END, answer)  # Insert the response into the text box
+            natural_result_text.yview(tk.END)  # Scroll to the end to display the response
 
     except Exception as e:
         messagebox.showerror("Error", f"Error with Cohere API: {e}")
         print(f"Error with Cohere API: {e}")
 
-# Funzione per rimuovere il testo predefinito quando si clicca sui box di testo
+# Function to clear the placeholder text when clicking on text boxes
 def clear_placeholder(event):
     widget = event.widget
     if widget.get("1.0", tk.END).strip() == "Enter your SPARQL query here..." or widget.get("1.0", tk.END).strip() == "Enter your natural language query here...":
@@ -263,7 +263,7 @@ def clear_placeholder(event):
 def create_interface():
     root = ttk.Window(themename="cosmo")  # Use a modern theme like "cosmo", "flatly", "darkly"
     root.title("Ontology Viewer with Cohere Integration")
-    root.geometry("900x1000")  # Allungata verso il basso
+    root.geometry("900x1000")  # Enlarged vertically
 
     # Load Ontology Section
     load_frame = ttk.Frame(root, padding=10)
@@ -286,7 +286,7 @@ def create_interface():
     sparql_query_text = ttk.ScrolledText(sparql_frame, height=8, width=80)
     sparql_query_text.pack(pady=5)
     sparql_query_text.insert("1.0", "Enter your SPARQL query here...")
-    sparql_query_text.bind("<FocusIn>", clear_placeholder)  # Rimuove il testo predefinito al clic
+    sparql_query_text.bind("<FocusIn>", clear_placeholder)  # Remove placeholder text on click
 
     btn_execute_sparql = ttk.Button(sparql_frame, text="Execute SPARQL Query", bootstyle=SUCCESS, command=execute_sparql_query)
     btn_execute_sparql.pack(pady=5)
@@ -303,7 +303,7 @@ def create_interface():
     natural_query_text = ttk.ScrolledText(natural_frame, height=8, width=80)
     natural_query_text.pack(pady=5)
     natural_query_text.insert("1.0", "Enter your natural language query here...")
-    natural_query_text.bind("<FocusIn>", clear_placeholder)  # Rimuove il testo predefinito al clic
+    natural_query_text.bind("<FocusIn>", clear_placeholder)  # Remove placeholder text on click
 
     btn_execute_natural = ttk.Button(natural_frame, text="Generate and Execute Query", bootstyle=PRIMARY, command=ask_cohere)
     btn_execute_natural.pack(pady=5)
