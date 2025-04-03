@@ -12,7 +12,7 @@ import pyperclip  # For copying text to clipboard
 import cohere
 
 # Initialize the Cohere API
-co = cohere.ClientV2("nVELX7wawaT3J0ufHIKWGbEolza9FDMZvn6svFxK")
+co = cohere.ClientV2("Replace with APIKey")  # Replace with your actual API key
 
 # Function to load TTL, RDF, OWL, or XML file (ontology)
 def load_ontology(file_path):
